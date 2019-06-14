@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  8 04:05:28 2019
-
-@author: eslam
-"""
-
 import cv2 
 import cv2 as cv
 import numpy as np
@@ -58,9 +51,9 @@ while(cap.isOpened()):
 cap.release()
 out.release()
 cv2.destroyAllWindows()
-
-############################Convert Video To Frames####################
-
+#
+#############################Convert Video To Frames####################
+#
 #Video Name
 vidcap = cv2.VideoCapture('output1.avi')
 success,image = vidcap.read()
@@ -71,24 +64,20 @@ while success:
   success,image = vidcap.read()
   count += 1
 
-##########################Face Detection################################
-     
+###########################Face Detection################################
+#     
 #face_cascade to Classifier the Face in the img
 face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-path = 'C:/Users/eslam/Desktop/GP/Frames'
+path = 'C:/Users/eslam/Desktop/GP/Frames/'
 num_files = len([f for f in os.listdir(path)if os.path.isfile(os.path.join(path, f))])
 
 ImageNumber = np.random.randint(num_files)
 
 ImageName = "frame" + str(ImageNumber) + ".jpg" 
 
-
 #Read an Image to be Detected and Convert it to Array of Pixels
 img = cv.imread("Frames/" + ImageName)
-
-#Read an Image to be Detected and Convert it to Array of Pixels
-img = cv.imread("eslam.jpg")
 
 #Convert Img to GrayScale Img Mode
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
@@ -115,6 +104,8 @@ for (x,y,w,h) in faces:
     crop_resize_img = cv2.resize(crop_img, (150, 150)) 
     cv2.imwrite("Comparison_Imgs/" + str(imgcounter) + ".jpg", crop_resize_img)
     imgcounter = imgcounter + 1
+
+cv2.imwrite("attendancedetect.jpg", newimg)
 
 ############################ Feature Engineering #########################
 
@@ -157,6 +148,7 @@ def cos_cdist(vector, comparisonImg):
         for k, v in data.items():
             names.append(k)
             matrix.append(v)
+            
         matrix = np.asarray(matrix)
         names = np.asarray(names)
     fp.close()
@@ -169,25 +161,22 @@ def match(image_path, comparisonImg, topn=5):
     features = extract_features(image_path)
     img_distances = cos_cdist(features, comparisonImg)
     
-    # getting top 5 records
-    nearest_ids = np.argsort(img_distances)[:topn].tolist()
-    #nearest_img_paths = names[nearest_ids[0]]
-
-    return img_distances[nearest_ids].tolist()
+    return img_distances[0]
 
 pck_path = 'C:/Users/eslam/Desktop/GP/PCKs/'
 pck_num = len([f for f in os.listdir(pck_path)if os.path.isfile(os.path.join(pck_path, f))])
 
-com_path = 'C:/Users/eslam/Desktop/GP/Comparison_Imgs'
+com_path = 'C:/Users/eslam/Desktop/GP/Comparison_Imgs/'
 com_num = len([f for f in os.listdir(com_path)if os.path.isfile(os.path.join(com_path, f))])
 
 attend = []
 
-pcklist = [0]
-
-for pck in range(len(pcklist)):
-    for cimg in range(com_num):
-        match = match("Comparison_Imgs/" + str(cimg) + ".jpg", "PCKs/" + str(pcklist[pck]) + ".pck", topn=3)
-        if (1-match[0]) > 0.4:
-        	attend.append(pck)
+pcklist = np.array([3,4])
+for cimg in range(com_num):
+    for pck in range(len(pcklist)):
+        print(1-match("Comparison_Imgs/" + str(cimg) + ".jpg", "PCKs/" + str(pcklist[pck]) + ".pck", topn=3))
+           
+        if (1-match("Comparison_Imgs/" + str(cimg) + ".jpg", "PCKs/" + str(pcklist[pck]) + ".pck", topn=3)  > 0.4):
+                attend.append(pcklist[pck])
+                
 print(attend)

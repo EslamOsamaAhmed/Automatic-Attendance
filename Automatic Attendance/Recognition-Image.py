@@ -3,28 +3,28 @@ import cv2 as cv
 import numpy as np
 import scipy
 import pickle
+import time
 import os, os.path
 from scipy import spatial 
 
-##########################Face Detection################################
-     
-#face_cascade to Classifier the Face in the img
-face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-#Read an Image to be Detected and Convert it to Array of Pixels
-img = cv.imread("Your Image Path to Detect.jpg")
+###########################Face Detection################################
+     
+##face_cascade to Classifier the Face in the img
+face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
+img = cv.imread("Your Image Path to be Recognized.jpg")
 
 #Convert Img to GrayScale Img Mode
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
 equ = cv2.equalizeHist(gray)
-cv2.imwrite('img_processing/face.jpg',equ)
+cv2.imwrite('c_img_processing/face.jpg',equ)
 
-Nimg = cv2.imread('img_processing/face.jpg')
+Nimg = cv2.imread('c_img_processing/face.jpg')
 median = cv2.medianBlur(Nimg, 5)
-cv2.imwrite('img_processing/facefilternoise.jpg',median)
+cv2.imwrite('c_img_processing/filternoise.jpg',median)
 
-newimg = cv2.imread('img_processing/facefilternoise.jpg')
+newimg = cv2.imread('c_img_processing/filternoise.jpg')
 
 """If faces are found, it returns the positions of detected faces as Rect(x,y,w,h)
 Create ROI for the Face and Eye Detection
@@ -37,13 +37,11 @@ for (x,y,w,h) in faces:
     # cropped newimg 
     crop_img = newimg[y:y+h, x:x+w]
     crop_resize_img = cv2.resize(crop_img, (150, 150)) 
-    cv2.imwrite("Cropped_IMG/" + str(imgcounter) + ".jpg", crop_resize_img)
+    cv2.imwrite("Comparison_Imgs/" + str(imgcounter) + ".jpg", crop_resize_img)
     imgcounter = imgcounter + 1
-    # roi_gray = gray[y:y+h, x:x+w]
-    # roi_color = img[y:y+h, x:x+w]
 
-#cv.imshow('img',img)
-cv2.imwrite("osamadetect.jpg", newimg)
+cv2.imwrite("attendancedetect.jpg", newimg)
+
 ############################ Feature Engineering #########################
 
 # Feature extractor
@@ -76,19 +74,44 @@ def extract_features(image_path, vector_size=32):
 
     return dsc
 
-
-def batch_extractor(images_path, pickled_db_path):
-    result = {}
-    result["face"] = extract_features(images_path)
-    
-    # saving all our feature vectors in pickled file
-    with open(pickled_db_path, 'wb') as fp:
-        pickle.dump(result, fp)
+def cos_cdist(vector, comparisonImg):
+    with open(comparisonImg, 'rb') as fp:
+        data = pickle.load(fp)
+        names = []
+        matrix = []
+        
+        for k, v in data.items():
+            names.append(k)
+            matrix.append(v)
+            
+        matrix = np.asarray(matrix)
+        names = np.asarray(names)
     fp.close()
     
-crop_path = 'C:/Users/eslam/Desktop/GP/Cropped_IMG/'
-cropped_num = len([f for f in os.listdir(crop_path)if os.path.isfile(os.path.join(crop_path, f))])
+    # getting cosine distance between search image and images database
+    v = vector.reshape(1, -1)
+    return scipy.spatial.distance.cdist(matrix, v, 'cosine').reshape(-1)
 
-for facenum in range(cropped_num):
-    batch_extractor("Cropped_IMG/" + str(facenum) + ".jpg", "PCKs/" + str(facenum) + ".pck")
+def match(image_path, comparisonImg, topn=5):
+    features = extract_features(image_path)
+    img_distances = cos_cdist(features, comparisonImg)
+    
+    return img_distances[0]
 
+pck_path = 'C:/Users/eslam/Desktop/GP/PCKs/'
+pck_num = len([f for f in os.listdir(pck_path)if os.path.isfile(os.path.join(pck_path, f))])
+
+com_path = 'C:/Users/eslam/Desktop/GP/Comparison_Imgs/'
+com_num = len([f for f in os.listdir(com_path)if os.path.isfile(os.path.join(com_path, f))])
+
+attend = []
+
+pcklist = np.array([3,4])
+for cimg in range(com_num):
+    for pck in range(len(pcklist)):
+        print(1-match("Comparison_Imgs/" + str(cimg) + ".jpg", "PCKs/" + str(pcklist[pck]) + ".pck", topn=3))
+           
+        if (1-match("Comparison_Imgs/" + str(cimg) + ".jpg", "PCKs/" + str(pcklist[pck]) + ".pck", topn=3)  > 0.4):
+                attend.append(pcklist[pck])
+                
+print(attend)
